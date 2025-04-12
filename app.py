@@ -1,10 +1,9 @@
 import streamlit as st
 import numpy as np
-import pickle
+import joblib
 
 st.set_page_config(page_title="Hypertension Risk Estimator", layout="centered")
 
-# Title
 st.title("🩺 Hypertension Risk Estimator")
 st.write("This app estimates your likelihood of having hypertension based on basic health indicators. For educational use only.")
 
@@ -38,18 +37,16 @@ features = [
     (1 if smoker == "Yes" else 0) * cigs_per_day  # Smoke Intensity
 ]
 
-# Load model and scaler
+# Load model and scaler with joblib
 try:
-    with open("model.pkl", "rb") as f:
-        model = pickle.load(f)
-    with open("scaler.pkl", "rb") as f:
-        scaler = pickle.load(f)
+    model = joblib.load("model.pkl")
+    scaler = joblib.load("scaler.pkl")
 except FileNotFoundError:
     st.warning("Required files not found. Please make sure 'model.pkl' and 'scaler.pkl' are in the same folder.")
     model = None
     scaler = None
 
-# Show prediction if model is loaded
+# Show prediction
 if model is not None and scaler is not None:
     if st.button("Estimate My Risk"):
         scaled_features = scaler.transform([features])
@@ -82,7 +79,7 @@ if model is not None and scaler is not None:
               - [NIH Heart, Lung, and Blood Institute](https://www.nhlbi.nih.gov/health-topics/high-blood-pressure)
             """)
 
-# Disclaimer footer
+# Disclaimer
 st.markdown(
     """
     <hr style='margin-top: 40px; margin-bottom:10px;'>
