@@ -15,7 +15,15 @@ def load_and_train():
     df = pd.read_csv("framingham.csv")
     df.dropna(inplace=True)
 
-    X = df.drop(columns=["TenYearCHD"])
+    # Use only the 13 features the form collects
+    X = df[[
+        "male", "age", "currentSmoker", "cigsPerDay", "BPMeds",
+        "diabetes", "totChol", "sysBP", "diaBP", "BMI",
+        "heartRate"
+    ]]
+    X["pulsePressure"] = X["sysBP"] - X["diaBP"]
+    X["smokeIntensity"] = X["currentSmoker"] * X["cigsPerDay"]
+
     y = df["TenYearCHD"]
 
     scaler = StandardScaler()
@@ -41,21 +49,21 @@ heart_rate = st.number_input("Heart Rate", min_value=40.0, max_value=140.0, valu
 bpm_meds = st.selectbox("Are you taking BP medication?", ["Yes", "No"])
 diabetes = st.selectbox("Do you have diabetes?", ["Yes", "No"])
 
-# Create feature vector
+# Create feature vector (13 features)
 features = [
-    1 if sex == "Male" else 0,
+    1 if sex == "Male" else 0,   # male
     age,
-    1 if smoker == "Yes" else 0,
+    1 if smoker == "Yes" else 0, # currentSmoker
     cigs_per_day,
-    1 if bpm_meds == "Yes" else 0,
+    1 if bpm_meds == "Yes" else 0, # BPMeds
     1 if diabetes == "Yes" else 0,
     totChol,
     sysBP,
     diaBP,
     bmi,
     heart_rate,
-    sysBP - diaBP,
-    (1 if smoker == "Yes" else 0) * cigs_per_day
+    sysBP - diaBP,  # pulsePressure
+    (1 if smoker == "Yes" else 0) * cigs_per_day  # smokeIntensity
 ]
 
 # Estimate risk
@@ -68,10 +76,23 @@ if st.button("Estimate My Risk"):
 
     if prediction == 1:
         st.error("⚠️ You are likely to have hypertension.")
+        st.markdown("""
+        #### Next Steps:
+        - Schedule a check-up with your primary care physician.
+        - Monitor your blood pressure at home regularly.
+        - Reduce sodium in your diet and avoid processed foods.
+        - Get 30 minutes of physical activity most days.
+        """)
     else:
         st.success("✅ You are likely NOT to have hypertension.")
+        st.markdown("""
+        #### Keep It Up:
+        - Maintain a healthy lifestyle with balanced meals and regular exercise.
+        - Avoid smoking and limit alcohol intake.
+        - Check blood pressure annually as a precaution.
+        """)
 
-# Footer
+# Disclaimer
 st.markdown(
     """
     <hr style='margin-top: 40px; margin-bottom:10px;'>
