@@ -1,13 +1,34 @@
 import streamlit as st
+import pandas as pd
 import numpy as np
-import joblib
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
 
 st.set_page_config(page_title="Hypertension Risk Estimator", layout="centered")
 
 st.title("🩺 Hypertension Risk Estimator")
 st.write("This app estimates your likelihood of having hypertension based on basic health indicators. For educational use only.")
 
-# User Inputs
+# Load dataset and train model in memory
+@st.cache_data
+def load_and_train():
+    df = pd.read_csv("framingham.csv")
+    df.dropna(inplace=True)
+    
+    X = df.drop(columns=["TenYearCHD"])
+    y = df["TenYearCHD"]
+    
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    model = RandomForestClassifier(random_state=42)
+    model.fit(X_scaled, y)
+
+    return model, scaler
+
+model, scaler = load_and_train()
+
+# User inputs
 age = st.slider('Age', 20, 100, 40)
 sex = st.selectbox("Sex", ["Male", "Female"])
 smoker = st.selectbox("Do you currently smoke?", ["Yes", "No"])
@@ -20,7 +41,7 @@ heart_rate = st.number_input("Heart Rate", min_value=40.0, max_value=140.0, valu
 bpm_meds = st.selectbox("Are you taking BP medication?", ["Yes", "No"])
 diabetes = st.selectbox("Do you have diabetes?", ["Yes", "No"])
 
-# Feature vector
+# Create feature vector
 features = [
     1 if sex == "Male" else 0,
     age,
@@ -37,49 +58,39 @@ features = [
     (1 if smoker == "Yes" else 0) * cigs_per_day  # Smoke Intensity
 ]
 
-# Load model and scaler with joblib
-try:
-    model = joblib.load("model.pkl")
-    scaler = joblib.load("scaler.pkl")
-except FileNotFoundError:
-    st.warning("Required files not found. Please make sure 'model.pkl' and 'scaler.pkl' are in the same folder.")
-    model = None
-    scaler = None
+# Estimate risk
+if st.button("Estimate My Risk"):
+    scaled_features = scaler.transform([features])
+    prediction = model.predict(scaled_features)[0]
+    probability = model.predict_proba(scaled_features)[0][1]
 
-# Show prediction
-if model is not None and scaler is not None:
-    if st.button("Estimate My Risk"):
-        scaled_features = scaler.transform([features])
-        prediction = model.predict(scaled_features)[0]
-        probability = model.predict_proba(scaled_features)[0][1]
+    st.markdown(f"**Estimated Risk Probability:** {probability:.1%}")
 
-        st.markdown(f"**Estimated Risk Probability:** {probability:.1%}")
+    if prediction == 1:
+        st.error("⚠️ You are likely to have hypertension.")
+        st.markdown("""
+        #### Next Steps:
+        - Schedule a check-up with your primary care physician.
+        - Monitor your blood pressure at home regularly.
+        - Reduce sodium in your diet and avoid processed foods.
+        - Get 30 minutes of physical activity most days.
+        - Resources:
+          - [CDC High Blood Pressure Guide](https://www.cdc.gov/bloodpressure/)
+          - [American Heart Association](https://www.heart.org/en/health-topics/high-blood-pressure)
+        """)
+    else:
+        st.success("✅ You are likely NOT to have hypertension.")
+        st.markdown("""
+        #### Keep It Up:
+        - Maintain a healthy lifestyle with balanced meals and regular exercise.
+        - Avoid smoking and limit alcohol intake.
+        - Check blood pressure annually as a precaution.
+        - Resources:
+          - [Healthy Living Tips - Mayo Clinic](https://www.mayoclinic.org/healthy-lifestyle)
+          - [NIH Heart, Lung, and Blood Institute](https://www.nhlbi.nih.gov/health-topics/high-blood-pressure)
+        """)
 
-        if prediction == 1:
-            st.error("⚠️ You are likely to have hypertension.")
-            st.markdown("""
-            #### Next Steps:
-            - Schedule a check-up with your primary care physician.
-            - Monitor your blood pressure at home regularly.
-            - Reduce sodium in your diet and avoid processed foods.
-            - Get 30 minutes of physical activity most days.
-            - Resources:
-              - [CDC High Blood Pressure Guide](https://www.cdc.gov/bloodpressure/)
-              - [American Heart Association](https://www.heart.org/en/health-topics/high-blood-pressure)
-            """)
-        else:
-            st.success("✅ You are likely NOT to have hypertension.")
-            st.markdown("""
-            #### Keep It Up:
-            - Maintain a healthy lifestyle with balanced meals and regular exercise.
-            - Avoid smoking and limit alcohol intake.
-            - Check blood pressure annually as a precaution.
-            - Resources:
-              - [Healthy Living Tips - Mayo Clinic](https://www.mayoclinic.org/healthy-lifestyle)
-              - [NIH Heart, Lung, and Blood Institute](https://www.nhlbi.nih.gov/health-topics/high-blood-pressure)
-            """)
-
-# Disclaimer
+# Footer disclaimer
 st.markdown(
     """
     <hr style='margin-top: 40px; margin-bottom:10px;'>
